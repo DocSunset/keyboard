@@ -1,3 +1,4 @@
+#include "key.h"
 
 // Teensy 2.0 has the LED on pin 11
 // Teensy++ 2.0 has the LED on pin 6
@@ -52,13 +53,10 @@ int layout[][ROWS][COLS] =
 
 byte row[ROWS] = {0, 1, 2, 3, 4, 5};
 byte col[COLS] = {21,20,19,18,17,16,15,14,12,11,10,9,8,7,6};
-float debounce[ROWS][COLS];
-int state[ROWS][COLS];
-const float debounce_factor_up   = 0.2;
-const float debounce_factor_down = 0.9;
 
+Key key[ROWS][COLS];
 
-int key[] = {0,0,0,0,0,0};
+int buff[] = {0,0,0,0,0,0};
 char mod[] = {0,0,0,0};
 
 
@@ -79,8 +77,7 @@ void setup()
   {
     for (int r = 0; r < ROWS; ++r)
     {
-      debounce[r][c] = 0;
-      state[r][c] = 0;
+      key[r][c].setup();
     }
   }
 }
@@ -93,7 +90,7 @@ void setKey(int keypress)
   Serial.println(keypress, DEC);
   // Look for unused keys in the buffer  
   int i, j;
-  for(i = 0; i < 6 && key[i] != 0; i++){}
+  for(i = 0; i < 6 && buff[i] != 0; i++){}
   for(j = 0; j < 4 && mod[j] != 0; j++){}
  
   if( j < 4 )
@@ -141,7 +138,7 @@ void setKey(int keypress)
 
     default:
       if (i < 6) {
-        key[i] = keypress;
+        buff[i] = keypress;
       }
     }
   }
@@ -151,12 +148,12 @@ void setKey(int keypress)
   
   // Hold keypresses in buffer
   Keyboard.set_modifier(mod[0]|mod[1]|mod[2]|mod[3]);
-  Keyboard.set_key1(key[0]);
-  Keyboard.set_key2(key[1]);
-  Keyboard.set_key3(key[2]);
-  Keyboard.set_key4(key[3]);
-  Keyboard.set_key5(key[4]);
-  Keyboard.set_key6(key[5]);
+  Keyboard.set_key1(buff[0]);
+  Keyboard.set_key2(buff[1]);
+  Keyboard.set_key3(buff[2]);
+  Keyboard.set_key4(buff[3]);
+  Keyboard.set_key5(buff[4]);
+  Keyboard.set_key6(buff[5]);
 }
 
 // This method sends the depressed keys and clears the buffer.
@@ -177,7 +174,7 @@ void sendKey()
 
 void clearBuffer()
 {
-  for(int x = 0; x < 6; x++){ key[x] = 0; }
+  for(int x = 0; x < 6; x++){ buff[x] = 0; }
   for(int x = 0; x < 4; x++){ mod[x] = 0; }
   
 }
@@ -185,12 +182,12 @@ void clearBuffer()
 // Detects when a key is held down, returns true if held down, false if not
 bool holdKey(char keypress)
 {
-  if(key[0] == keypress ||
-     key[1] == keypress ||
-     key[2] == keypress ||
-     key[3] == keypress ||
-     key[4] == keypress ||
-     key[5] == keypress)
+  if(buff[0] == keypress ||
+     buff[1] == keypress ||
+     buff[2] == keypress ||
+     buff[3] == keypress ||
+     buff[4] == keypress ||
+     buff[5] == keypress)
     return true;
   
   return false;
@@ -218,17 +215,6 @@ void toggleLayer(char keyHeld, int desLayer)
     currLayer = prevLayer; // Returns to previous layer
 }
 
-// Macro sequence
-void ctrlAltDel()
-{
-  // Using CTRL+ALT+KEYPAD_0 as example
-  setKey(KEYPAD_0);
-  setKey(176);
-  setKey(177);
-  
-  sendKey();
-}
-
 // Goes to desired layer when keyHeld is pressed, returns to previous layer when released 
 void holdLayer(char keyHeld, int desLayer)
 {
@@ -251,33 +237,37 @@ void holdLayer(char keyHeld, int desLayer)
   }
 }
 
+int counter = 0;
 void loop() 
 {
   for (int r = 0; r < ROWS; ++r) 
   {
+    //Serial.print(r, DEC); Serial.print(": ");
     digitalWrite(row[r], LOW);
     for (int c = 0; c < COLS; ++c)
     {
-      float button = !digitalRead(col[c]);
-      if (button) debounce[r][c] = debounce_factor_up*debounce[r][c] + (1.0 - debounce_factor_up)*button;
-      else debounce[r][c] = debounce_factor_down*debounce[r][c] + (1.0 - debounce_factor_down)*button;
-
-      if (!state[r][c] && debounce[r][c] >  0.99) state[r][c] = 1;
-      else if (debounce[r][c]  < 0.01) state[r][c] = 0;
-
-      if (state[r][c])  
+      int raw_state = !digitalRead(col[c]);
+      key[r][c].update(raw_state);
+      if (!key[r][c].stable_released() && !key[r][c].stable_pressed())
       {
-          // Triggers macro function when '#' is pressed, can be any other char defined in layout[][][]
-          if(layout[currLayer][r][c] == '#')
-          {
-            ctrlAltDel(); // Performs macro function
-          }
-          else
-            setKey(layout[currLayer][r][c]);
+        Serial.print(r, DEC); 
+        Serial.write(' '); 
+        Serial.print(c, DEC);
+        Serial.write(' ');
+        print_binary(key[r][c].history); 
+        Serial.write(' ');
+        Serial.print(counter++, DEC);
+        Serial.write('\n');
+      }
+      if (key[r][c].pressed())  
+      {
+//      setKey(layout[currLayer][r][c]);
       }
     }
+    //Serial.print('\n');
     digitalWrite(row[r], HIGH);
   }
+  //Serial.print('\n');
   
   holdLayer('^', desiredLayer); // If the fn layer key is held, it changes the layer to the desired layer, when released, returns to previous layer
   
@@ -286,3 +276,9 @@ void loop()
   delay(1);
 }
 
+// https://forum.arduino.cc/index.php?topic=475435.0
+void print_binary(uint32_t var) 
+{
+  for (uint32_t test = 0x80000000; test; test >>= 1) 
+    Serial.write(var & test ? '1' : '0');
+}
