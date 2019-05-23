@@ -4,8 +4,9 @@
 // Teensy 3.0 has the LED on pin 13
 const int ledPin = 13;
 
-const byte ROWS = 2;  // Currently using only a 2x2 matrix test board
-const byte COLS = 2;
+const byte ROWS = 6;  
+const byte COLS = 15;
+
 int LAYERS = 2;
 
 bool toggleBind = false;
@@ -13,70 +14,140 @@ int currLayer = 0;
 int prevLayer = 0;
 int desiredLayer = 1;
 
-char layout[][ROWS][COLS] = {  
+#define TW_LEFT_SHIFT -1
+#define TW_LEFT_CTRL -2
+#define TW_LEFT_ALT -3
+#define TW_LEFT_GUI -4
+#define TW_RIGHT_SHIFT -5
+#define TW_RIGHT_CTRL -6
+#define TW_RIGHT_ALT -7
+#define TW_RIGHT_GUI -8
+#define TW_SUPER -9
+#define TW_NO_OP -10
+
+int layout[][ROWS][COLS] = {  
   {
     
   //layer 0
-  {KEY_A,'^'},  // '^' is defined as fn layer key, when held the the layer goes to the desired layer
-  {KEY_W,'#'}
+  {KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_INSERT, KEY_F6, TW_SUPER, KEY_F7, KEY_PRINTSCREEN, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12},
+  {KEY_ESC, KEY_TILDE, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, TW_LEFT_GUI, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_LEFT_BRACE, KEY_DELETE },
+  {KEY_TAB, KEY_EQUAL, KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T, KEY_DELETE, KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_QUOTE, KEY_RIGHT_BRACE},
+  {KEY_BACKSPACE, TW_LEFT_CTRL, KEY_A, KEY_S, KEY_D, KEY_F, KEY_G, KEY_MINUS, KEY_H, KEY_J, KEY_K, KEY_L, KEY_SEMICOLON, KEY_ENTER, KEY_BACKSLASH},
+  {TW_NO_OP, TW_LEFT_SHIFT, KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B, KEY_BACKSPACE, KEY_N, KEY_M, KEY_COMMA, KEY_PERIOD, KEY_SLASH, TW_RIGHT_SHIFT, TW_NO_OP},
+  {TW_NO_OP, TW_LEFT_ALT, KEY_HOME, KEY_PAGE_DOWN, KEY_PAGE_UP, KEY_END, TW_LEFT_GUI, KEY_ENTER, KEY_SPACE, KEY_LEFT, KEY_DOWN, KEY_UP, KEY_RIGHT, TW_RIGHT_ALT, TW_NO_OP}
+
   },{
     
-  //layer 1
-  {KEY_LEFT_ARROW,'^'},
-  {KEY_RIGHT_ARROW,'#'}
+  {KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_INSERT, KEY_F6, TW_SUPER, KEY_F7, KEY_PRINTSCREEN, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12},
+  {KEY_ESC, KEY_TILDE, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, TW_LEFT_GUI, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_LEFT_BRACE, KEY_DELETE },
+  {KEY_TAB, KEY_EQUAL, KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T, KEY_DELETE, KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_QUOTE, KEY_RIGHT_BRACE},
+  {KEY_BACKSPACE, TW_LEFT_CTRL, KEY_A, KEY_S, KEY_D, KEY_F, KEY_G, KEY_MINUS, KEY_H, KEY_J, KEY_K, KEY_L, KEY_SEMICOLON, KEY_ENTER, KEY_BACKSLASH},
+  {TW_NO_OP, TW_LEFT_SHIFT, KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B, KEY_BACKSPACE, KEY_N, KEY_M, KEY_COMMA, KEY_PERIOD, KEY_SLASH, TW_RIGHT_SHIFT, TW_NO_OP},
+  {TW_NO_OP, TW_LEFT_ALT, KEY_HOME, KEY_PAGE_DOWN, KEY_PAGE_UP, KEY_END, TW_LEFT_GUI, KEY_ENTER, KEY_SPACE, KEY_LEFT, KEY_DOWN, KEY_UP, KEY_RIGHT, TW_RIGHT_ALT, TW_NO_OP}
+
   }
   
 };
 
-byte row[ROWS] = {19,20};
-byte col[COLS] = {2,3};
+byte row[ROWS] = {0, 1, 2, 3, 4, 5};
+byte col[COLS] = {21,20,19,18,17,16,15,14,12,11,10,9,8,7,6};
+float debounce[ROWS][COLS];
+int state[ROWS][COLS];
+const float debounce_factor_up   = 0.2;
+const float debounce_factor_down = 0.9;
+
 
 int key[] = {0,0,0,0,0,0};
-char mod[] = {0,0};
+char mod[] = {0,0,0,0};
 
 
 
 void setup() {
+  Serial.begin(9600);
   // initialize the digital pin as an output.
   pinMode(ledPin, OUTPUT);
   for (int c = 0; c < COLS; c++){
-    pinMode(col[c], OUTPUT);
+    pinMode(col[c], INPUT_PULLUP);
   }
   for (int r = 0; r < ROWS; r++){
-    pinMode(row[r], INPUT);
+    pinMode(row[r], OUTPUT);
   } 
+  for (int c = 0; c < COLS; ++c){
+    for (int r = 0; r < ROWS; ++r){
+      debounce[r][c] = 0;
+      state[r][c] = 0;
+    }
+  }
 }
 
 // This function will take keypresses passed to it (in the form of a char, for no particular reason)
 // and add them to set of six keys that will be passed to the computer when Keyboard.send_now() is called.
 
 // Basically, this collects the currently pressed keys and stores them until they can be passed to the computer.
-void setKey(char keypress){
+void setKey(int keypress){
   
+  Serial.println(keypress, DEC);
   // Look for unused keys in the buffer  
   int i, j;
-  for(i = 0; key[i] != 0; i++){}
-  for(j = 0; mod[j] != 0; j++){}
+  for(i = 0; i < 6 && key[i] != 0; i++){}
+  for(j = 0; j < 4 && mod[j] != 0; j++){}
  
   // Catch Modifiers
-  if(keypress == 176){
-    mod[j] = KEY_LEFT_CTRL;
-  }
-  else if(keypress == 177){
-    mod[j] = KEY_LEFT_ALT;
-  }
-  else if(keypress == 178){
-    mod[j] = KEY_LEFT_SHIFT;
-  }
-  else{
-    key[i] = keypress;
+  if( j < 4 )
+  {
+    switch (keypress)
+    {
+    case TW_NO_OP:
+      break;
+
+    case TW_LEFT_CTRL:
+      mod[j] = KEY_LEFT_CTRL;
+      break;
+
+    case TW_LEFT_SHIFT:
+      mod[j] = KEY_LEFT_SHIFT;
+      break;
+
+    case TW_LEFT_ALT:
+      mod[j] = KEY_LEFT_ALT;
+      break;
+
+    case TW_LEFT_GUI:
+      mod[j] = KEY_LEFT_GUI;
+      break;
+
+    case TW_RIGHT_CTRL:
+      mod[j] = KEY_RIGHT_CTRL;
+      break;
+
+    case TW_RIGHT_SHIFT:
+      mod[j] = KEY_RIGHT_SHIFT;
+      break;
+
+    case TW_RIGHT_ALT:
+      mod[j] = KEY_RIGHT_ALT;
+      break;
+
+    case TW_RIGHT_GUI:
+      mod[j] = KEY_RIGHT_GUI;
+      break;
+
+    case TW_SUPER:
+      mod[j] = KEY_LEFT_CTRL | KEY_LEFT_SHIFT | KEY_LEFT_ALT | KEY_LEFT_GUI;
+      break;
+
+    default:
+      if (i < 6) {
+        key[i] = keypress;
+      }
+    }
   }
   
   if(holdKey('^')) // Prevent setting layer key into set_key or set_modifier
     return;
   
   // Hold keypresses in buffer
-  Keyboard.set_modifier(mod[0]|mod[1]);
+  Keyboard.set_modifier(mod[0]|mod[1]|mod[2]|mod[3]);
   Keyboard.set_key1(key[0]);
   Keyboard.set_key2(key[1]);
   Keyboard.set_key3(key[2]);
@@ -92,20 +163,20 @@ void sendKey(){
   Keyboard.send_now();
   clearBuffer();
   
-  Keyboard.set_modifier(mod[0]);
-  Keyboard.set_key1(key[0]);
-  Keyboard.set_key2(key[1]);
-  Keyboard.set_key3(key[2]);
-  Keyboard.set_key4(key[3]);
-  Keyboard.set_key5(key[4]);
-  Keyboard.set_key6(key[5]);
+  Keyboard.set_modifier(0);
+  Keyboard.set_key1(0);
+  Keyboard.set_key2(0);
+  Keyboard.set_key3(0);
+  Keyboard.set_key4(0);
+  Keyboard.set_key5(0);
+  Keyboard.set_key6(0);
 }
 
 // Helper function to clear the buffer
 void clearBuffer(){
   
   for(int x = 0; x < 6; x++){ key[x] = 0; }
-  for(int x = 0; x < 2; x++){ mod[x] = 0; }
+  for(int x = 0; x < 4; x++){ mod[x] = 0; }
   
 }
 
@@ -181,27 +252,36 @@ void holdLayer(char keyHeld, int desLayer){
 
 void loop() {
 
-  for (int c = 0; c < COLS; c++) {
-    digitalWrite(col[c], HIGH);
-    for (int r = 0; r < ROWS; r++){
-      if (digitalRead(row[r])){
-        
+  for (int r = 0; r < ROWS; ++r) 
+  {
+    digitalWrite(row[r], LOW);
+    for (int c = 0; c < COLS; ++c)
+    {
+      float button = !digitalRead(col[c]);
+      if (button) debounce[r][c] = debounce_factor_up*debounce[r][c] + (1.0 - debounce_factor_up)*button;
+      else debounce[r][c] = debounce_factor_down*debounce[r][c] + (1.0 - debounce_factor_down)*button;
+
+      if (!state[r][c] && debounce[r][c] >  0.99) state[r][c] = 1;
+      else if (debounce[r][c]  < 0.01) state[r][c] = 0;
+
+      if (state[r][c])  
+      {
           // Triggers macro function when '#' is pressed, can be any other char defined in layout[][][]
-          if(layout[currLayer][r][c] == '#'){
+          if(layout[currLayer][r][c] == '#')
+          {
             ctrlAltDel(); // Performs macro function
           }
-          
           else
             setKey(layout[currLayer][r][c]);
       }
     }
-    digitalWrite(col[c], LOW);
+    digitalWrite(row[r], HIGH);
   }
   
   holdLayer('^', desiredLayer); // If the fn layer key is held, it changes the layer to the desired layer, when released, returns to previous layer
   
   // Now that all of the keys have been polled it is time to send them out!
   sendKey();
-  delay(5);
+  delay(1);
 }
 
