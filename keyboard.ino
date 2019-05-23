@@ -25,7 +25,8 @@ int desiredLayer = 1;
 #define TW_SUPER -9
 #define TW_NO_OP -10
 
-int layout[][ROWS][COLS] = {  
+int layout[][ROWS][COLS] = 
+{  
   {
     
   //layer 0
@@ -62,37 +63,39 @@ char mod[] = {0,0,0,0};
 
 
 
-void setup() {
+void setup() 
+{
   Serial.begin(9600);
   // initialize the digital pin as an output.
   pinMode(ledPin, OUTPUT);
-  for (int c = 0; c < COLS; c++){
+
+  for (int c = 0; c < COLS; c++)
     pinMode(col[c], INPUT_PULLUP);
-  }
-  for (int r = 0; r < ROWS; r++){
+
+  for (int r = 0; r < ROWS; r++)
     pinMode(row[r], OUTPUT);
-  } 
-  for (int c = 0; c < COLS; ++c){
-    for (int r = 0; r < ROWS; ++r){
+
+  for (int c = 0; c < COLS; ++c)
+  {
+    for (int r = 0; r < ROWS; ++r)
+    {
       debounce[r][c] = 0;
       state[r][c] = 0;
     }
   }
 }
 
-// This function will take keypresses passed to it (in the form of a char, for no particular reason)
+// This function will take keypresses passed to it (in the form of an int, for no particular reason)
 // and add them to set of six keys that will be passed to the computer when Keyboard.send_now() is called.
-
 // Basically, this collects the currently pressed keys and stores them until they can be passed to the computer.
-void setKey(int keypress){
-  
+void setKey(int keypress)
+{
   Serial.println(keypress, DEC);
   // Look for unused keys in the buffer  
   int i, j;
   for(i = 0; i < 6 && key[i] != 0; i++){}
   for(j = 0; j < 4 && mod[j] != 0; j++){}
  
-  // Catch Modifiers
   if( j < 4 )
   {
     switch (keypress)
@@ -154,11 +157,11 @@ void setKey(int keypress){
   Keyboard.set_key4(key[3]);
   Keyboard.set_key5(key[4]);
   Keyboard.set_key6(key[5]);
-  
 }
 
 // This method sends the depressed keys and clears the buffer.
-void sendKey(){
+void sendKey()
+{
   
   Keyboard.send_now();
   clearBuffer();
@@ -172,32 +175,30 @@ void sendKey(){
   Keyboard.set_key6(0);
 }
 
-// Helper function to clear the buffer
-void clearBuffer(){
-  
+void clearBuffer()
+{
   for(int x = 0; x < 6; x++){ key[x] = 0; }
   for(int x = 0; x < 4; x++){ mod[x] = 0; }
   
 }
 
 // Detects when a key is held down, returns true if held down, false if not
-bool holdKey(char keypress){
-  
+bool holdKey(char keypress)
+{
   if(key[0] == keypress ||
      key[1] == keypress ||
      key[2] == keypress ||
      key[3] == keypress ||
      key[4] == keypress ||
-     key[5] == keypress){
+     key[5] == keypress)
     return true;
-  }
   
   return false;
 }
 
 // Calling this function will cycle to the next layer
-void cycleLayer(){ 
-  
+void cycleLayer()
+{ 
   if(currLayer == (LAYERS - 1)) // Reached maximum layer, going back to first layer
     currLayer = 0;
     
@@ -206,8 +207,8 @@ void cycleLayer(){
 }
 
 // Toggles between two layers, the curret layer and desired layer
-void toggleLayer(char keyHeld, int desLayer){ 
-  
+void toggleLayer(char keyHeld, int desLayer)
+{
   if (holdKey(keyHeld)){
     prevLayer = currLayer; // Saves previous layer
     currLayer = desLayer; // Desired layer
@@ -218,7 +219,8 @@ void toggleLayer(char keyHeld, int desLayer){
 }
 
 // Macro sequence
-void ctrlAltDel(){ 
+void ctrlAltDel()
+{
   // Using CTRL+ALT+KEYPAD_0 as example
   setKey(KEYPAD_0);
   setKey(176);
@@ -228,30 +230,29 @@ void ctrlAltDel(){
 }
 
 // Goes to desired layer when keyHeld is pressed, returns to previous layer when released 
-void holdLayer(char keyHeld, int desLayer){
-  
-  if(holdKey(keyHeld)){
-    
-    if(!toggleBind){ // Saves the previous layer, using boolean to prevent updating prevLayer more than once
+void holdLayer(char keyHeld, int desLayer)
+{
+  if(holdKey(keyHeld))
+  {
+    if(!toggleBind) // Saves the previous layer, using boolean to prevent updating prevLayer more than once
+    { 
       prevLayer = currLayer;
       toggleBind = 1;
     }
     
     currLayer = desLayer; // Desire layer
   }
-  
-  else{
-    
-    if(toggleBind){ 
+  else
+  {
+    if(toggleBind)
       toggleBind = !toggleBind; // Resets boolean
-    }
     
     currLayer = prevLayer; // Returns to previous layer
   }
 }
 
-void loop() {
-
+void loop() 
+{
   for (int r = 0; r < ROWS; ++r) 
   {
     digitalWrite(row[r], LOW);
