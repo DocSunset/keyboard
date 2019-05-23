@@ -237,39 +237,29 @@ void holdLayer(char keyHeld, int desLayer)
   }
 }
 
-int counter = 0;
+double counter = 0;
+double pop_count_accumulator = 0;
+uint8_t max_pop_count = 0;
 void loop() 
 {
   for (int r = 0; r < ROWS; ++r) 
   {
-    //Serial.print(r, DEC); Serial.print(": ");
     digitalWrite(row[r], LOW);
     for (int c = 0; c < COLS; ++c)
     {
       int raw_state = !digitalRead(col[c]);
       key[r][c].update(raw_state);
-      if (!key[r][c].stable_released() && !key[r][c].stable_pressed())
+      if (key[r][c].pressed)  
       {
-        Serial.print(r, DEC); 
-        Serial.write(' '); 
-        Serial.print(c, DEC);
-        Serial.write(' ');
-        print_binary(key[r][c].history); 
-        Serial.write(' ');
-        Serial.print(counter++, DEC);
-        Serial.write('\n');
-      }
-      if (key[r][c].pressed())  
-      {
-//      setKey(layout[currLayer][r][c]);
+        setKey(layout[currLayer][r][c]);
       }
     }
-    //Serial.print('\n');
     digitalWrite(row[r], HIGH);
   }
-  //Serial.print('\n');
   
-  holdLayer('^', desiredLayer); // If the fn layer key is held, it changes the layer to the desired layer, when released, returns to previous layer
+  // If the fn layer key is held, it changes the layer to the desired layer,
+  // when released, returns to previous layer
+  holdLayer('^', desiredLayer); 
   
   // Now that all of the keys have been polled it is time to send them out!
   sendKey();
