@@ -29,8 +29,8 @@ But some of the keys were less well behaved, giving readings like the following:
 1110 0010 0011 1010 1111 1000 0110 1100
 0010 0111 1101 0000 0110 0111 1110 1000
 1000 0000 1110 1111 1101 1111 1110 0001
-```
 etc.
+```
 
 None of the debounce algorithms I read about seemed likely to be able to make
 sense of this kind of chatter. One thing I recognized though was that all of the
@@ -44,7 +44,7 @@ is assumed the key is pressed. The key is then considered to be held as long as
 chatter or constant ones continue, and isn't allowed to be considered released
 until a stable and decisive stream of zeros is observed.
 
-To prevent spurious presses in case on EMI (not that I noticed any) or a
+To prevent spurious presses in case of EMI (not that I noticed any) or a
 mechanical disturbance such as dropping the keyboard, I set a relatively low
 threshold for the number of pressed observations required before the key is
 switched to a pressed state. This should hopefully keep the keys from going
