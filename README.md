@@ -19,13 +19,17 @@ move as little as possible.
 Most of the time with most of the keys, I would see the expected stream of ones
 meaning that the key is pressed:
 
+```
 1111 1111 1111 1111 1111 1111 1111 1111
+```
 
 But some of the keys were less well behaved, giving readings like the following:
 
+```
 1110 0010 0011 1010 1111 1000 0110 1100
 0010 0111 1101 0000 0110 0111 1110 1000
 1000 0000 1110 1111 1101 1111 1110 0001
+```
 etc.
 
 None of the debounce algorithms I read about seemed likely to be able to make
